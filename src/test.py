@@ -3,6 +3,7 @@
 """
 import torch
 import numpy as np
+import matplotlib.pyplot as plt
 
 from config import best_model
 from dataset import OmniglotSet
@@ -10,18 +11,31 @@ from network import Resnet50
 from utils import proj_param, set_env, get_data_loader
 
 
+def save_img(x, y, y_hat, ks):
+    for i in range(x.shape[0]):
+        img = x[i, 0]
+        label = y[i]
+        pred = y_hat[i]
+        plt.imshow(img, cmap='gray')
+        plt.xticks([])
+        plt.yticks([])
+        plt.savefig(f'../data/predict/ks{ks}/{label}_{pred}.jpg')
+        plt.close('all')
+
+
 # 测评数据集准确率
-def evaluate(model, data_loader, title, device):
+def evaluate(model, data_loader, title, device, ks):
     correct, cls_number = 0, np.zeros(10)
 
     for i, item in enumerate(data_loader):
-        print(f'\r{title} [{i + 1}/{len(data_loader)}] 。。。', end='')
+        print(f'\r{title} [{i + 1}/{len(data_loader)}] ...', end='')
         x, y = item
         x = x.to(device, dtype=torch.float32)
         y = y.to(device, dtype=torch.long)
 
-        y_hat = model(x)
-        correct += torch.sum(y_hat.argmax(dim=1) == y)
+        y_hat = model(x).argmax(dim=1)
+        correct += torch.sum(y_hat == y)
+        save_img(x.cpu().numpy(), y.cpu().numpy(), y_hat.cpu().numpy(), ks)
 
     return f'{correct/len(data_loader.dataset) * 100:.2f}%'
 
@@ -45,8 +59,8 @@ def main(args):
     model.eval()
     with torch.no_grad():
         # 测试测试集数据
-        acc = evaluate(model, test_loader, f'测评测试集(ks={ks})', device)
-        print(f'(ks={ks})测试集准确率为：{acc}')
+        acc = evaluate(model, test_loader, f'测评测试集(ks={ks})', device, ks)
+        print(f'\r(ks={ks})测试集准确率为：{acc}')
 
 
 if __name__ == '__main__':
